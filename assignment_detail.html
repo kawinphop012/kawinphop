@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0 p-4 mb-4">
+                <div class="d-flex justify-content-between border-bottom pb-3 mb-3">
+                    <h3 class="text-primary fw-bold">{{ assignment.title }}</h3>
+                    <div class="text-end">
+                        <p class="mb-0 fw-bold">{{ assignment.max_score }} คะแนน</p>
+                        <small class="text-danger">ครบกำหนด: {{ assignment.due_date.strftime('%d/%m/%Y %H:%M') }}</small>
+                    </div>
+                </div>
+                <p style="white-space: pre-wrap;">{{ assignment.description }}</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="card shadow-sm border-0 p-4">
+                <h5 class="fw-bold mb-3">งานของคุณ</h5>
+                {% if submission %}
+                    <div class="alert alert-success">สถานะ: {{ submission.status }}</div>
+                    {% if submission.text_answer %}<p><strong>ข้อความ:</strong> {{ submission.text_answer }}</p>{% endif %}
+                    {% if submission.file_name %}
+                        <p><strong>ไฟล์:</strong> <a href="{{ url_for('static', filename='uploads/' ~ submission.file_name) }}" target="_blank" class="text-decoration-none">📄 {{ submission.file_name }}</a></p>
+                    {% endif %}
+                    <hr>
+                    <h6 class="fw-bold">คะแนน: <span class="text-primary">{{ submission.score if submission.score != None else 'รอตรวจ' }} / {{ assignment.max_score }}</span></h6>
+                    {% if submission.feedback %}<p class="text-muted"><strong>ข้อเสนอแนะ:</strong> {{ submission.feedback }}</p>{% endif %}
+                    
+                    <!-- ปุ่มยกเลิกการส่งงาน -->
+                    <form action="{{ url_for('assignment.cancel_submission', assignment_id=assignment.id) }}" method="POST" class="mt-4" onsubmit="return confirm('คุณแน่ใจหรือไม่ว่าต้องการยกเลิกการส่งงานนี้? หากยกเลิกไฟล์เดิมจะถูกลบและคุณต้องส่งใหม่ทั้งหมด');">
+                        <button type="submit" class="btn btn-outline-danger w-100">ยกเลิกการส่งงาน</button>
+                    </form>
+
+                {% else %}
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-3"><label>ส่งข้อความ</label><textarea class="form-control" name="text_answer" rows="4"></textarea></div>
+                        <div class="mb-4"><label>แนบไฟล์</label><input type="file" class="form-control" name="file"></div>
+                        <button type="submit" class="btn btn-primary w-100">ส่งงาน</button>
+                    </form>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('assignment.list_assignments', class_id=classroom.id) }}" class="btn btn-outline-secondary mt-3">กลับ</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

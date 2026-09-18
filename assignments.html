@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block body %}
+<nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom px-3">
+    <div class="container-fluid">
+        <a class="navbar-brand text-primary fw-bold" href="{{ url_for('dashboard.index') }}">← กลับ</a>
+        <div class="collapse navbar-collapse justify-content-center">
+            <ul class="navbar-nav">
+                <li class="nav-item mx-2"><a class="nav-link" href="{{ url_for('classroom.stream', class_id=classroom.id) }}">📢 สตรีม</a></li>
+                <li class="nav-item mx-2"><a class="nav-link active fw-bold border-bottom border-primary border-3" href="#">📝 งาน</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold">งานทั้งหมด: {{ classroom.name }}</h3>
+        {% if current_user.role == 'teacher' %}
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAssignmentModal">+ สร้างงาน</button>
+        {% endif %}
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="list-group">
+        {% for assignment in assignments %}
+        <a href="{{ url_for('assignment.view_assignment', assignment_id=assignment.id) }}" class="list-group-item list-group-item-action p-4 mb-2 rounded shadow-sm border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="text-primary mb-1">{{ assignment.title }}</h5>
+                <small class="text-muted">กำหนดส่ง: {{ assignment.due_date.strftime('%d/%m/%Y %H:%M') }} | คะแนนเต็ม: {{ assignment.max_score }}</small>
+            </div>
+            {% if current_user.role == 'student' %}
+                {% if assignment.id in student_submissions %}
+                    <span class="badge bg-success fs-6">{{ student_submissions[assignment.id].status }}</span>
+                {% else %}
+                    {% if now > assignment.due_date %}
+                    <span class="badge bg-danger fs-6">🔴 เลยกำหนด</span>
+                    {% else %}
+                    <span class="badge bg-secondary fs-6">ยังไม่ส่ง</span>
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+        </a>
+        {% else %}
+        <div class="text-center text-muted py-5">ยังไม่มีงานในวิชานี้</div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="modal fade" id="createAssignmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('assignment.create', class_id=classroom.id) }}" method="POST">
+                <div class="modal-header"><h5 class="modal-title">สร้างงานใหม่</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <div class="mb-3"><label>ชื่องาน</label><input type="text" class="form-control" name="title" required></div>
+                    <div class="mb-3"><label>รายละเอียด</label><textarea class="form-control" name="description" rows="3"></textarea></div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3"><label>คะแนนเต็ม</label><input type="number" class="form-control" name="max_score" value="100" required></div>
+                        <div class="col-md-6 mb-3"><label>วันกำหนดส่ง</label><input type="datetime-local" class="form-control" name="due_date" required></div>
+                    </div>
+                </div>
+                <div class="modal-footer"><button type="submit" class="btn btn-primary">บันทึก</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

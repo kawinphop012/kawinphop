@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<div class="d-flex">
+    <!-- Sidebar -->
+    <div class="sidebar p-3 d-none d-md-block" style="width: 250px;">
+        <h4 class="text-primary fw-bold mb-4 px-2">Social Class</h4>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link active" href="{{ url_for('dashboard.index') }}">🏠 หน้าแรก</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('dashboard.index') }}">📚 ห้องเรียน</a>
+            </li>
+            <!-- ลบเมนู งาน, แบบทดสอบ, เช็กชื่อ และ คะแนน ออกแล้ว -->
+            <li class="nav-item mt-4">
+                <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">🚪 ออกจากระบบ</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-grow-1 bg-light">
+        <!-- Top Navbar -->
+        <div class="top-navbar p-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">สวัสดี{% if current_user.role == 'teacher' %}ครับ ครู{% else %} {% endif %}{{ current_user.name }}</h5>
+            <div>
+                <span class="badge bg-primary rounded-pill px-3 py-2">{{ 'ครูผู้สอน' if current_user.role == 'teacher' else 'นักเรียน' }}</span>
+            </div>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div class="p-4">
+            <!-- Statistics Cards (อัปเดตข้อมูลจริง) -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="card stat-card p-3 text-center">
+                        <h2 class="text-primary">{{ stats.class_count }}</h2>
+                        <span class="text-muted">📚 ห้องเรียน</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card stat-card p-3 text-center">
+                        <h2 class="text-success">{{ stats.student_count if current_user.role == 'teacher' else stats.pending_tasks }}</h2>
+                        <span class="text-muted">{% if current_user.role == 'teacher' %}👨‍🎓 นักเรียนในคลาส{% else %}📝 งานที่ค้างส่ง{% endif %}</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card stat-card p-3 text-center">
+                        <h2 class="text-warning">{{ stats.assignment_count if current_user.role == 'teacher' else stats.submitted_tasks }}</h2>
+                        <span class="text-muted">{% if current_user.role == 'teacher' %}📝 งานที่สั่งทั้งหมด{% else %}✅ งานที่ส่งแล้ว{% endif %}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Classrooms Section -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">ห้องเรียนของฉัน</h5>
+                {% if current_user.role == 'teacher' %}
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createClassModal">+ สร้างห้องเรียน</button>
+                {% else %}
+                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#joinClassModal">+ เข้าร่วมด้วยรหัส</button>
+                {% endif %}
+            </div>
+
+            <!-- แจ้งเตือน (Flash Messages) -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="row g-4">
+                {% for classroom in classrooms %}
+                <div class="col-md-4">
+                    <div class="card class-card h-100">
+                        <div class="class-card-header">
+                            <h5 class="mb-1 text-truncate">{{ classroom.name }}</h5>
+                            <small>{{ classroom.subject_code }}</small>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-0">ภาคเรียนที่ {{ classroom.semester }}/{{ classroom.year }}</p>
+                            {% if current_user.role == 'teacher' %}
+                            <p class="mb-0 mt-2"><strong>Class Code:</strong> <span class="text-primary fw-bold">{{ classroom.class_code }}</span></p>
+                            {% else %}
+                            <p class="mb-0 mt-2"><strong>ครูผู้สอน:</strong> {{ classroom.teacher.name }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer bg-white border-0 text-end pb-3">
+                            <a href="{{ url_for('classroom.stream', class_id=classroom.id) }}" class="btn btn-sm btn-outline-primary">เข้าสู่ห้องเรียน</a>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-12 text-center py-5 text-muted">
+                    <p>คุณยังไม่มีห้องเรียนในขณะนี้</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal สำหรับครูสร้างห้องเรียน -->
+<div class="modal fade" id="createClassModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('classroom.create') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">สร้างห้องเรียนใหม่</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">ชื่อวิชา</label>
+                        <input type="text" class="form-control" name="name" required placeholder="เช่น ประวัติศาสตร์สากล">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">รหัสวิชา</label>
+                        <input type="text" class="form-control" name="subject_code" required placeholder="เช่น SOC101">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">ภาคเรียน</label>
+                            <input type="text" class="form-control" name="semester" required placeholder="เช่น 1">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">ปีการศึกษา</label>
+                            <input type="text" class="form-control" name="year" required placeholder="เช่น 2567">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">รายละเอียด (ถ้ามี)</label>
+                        <textarea class="form-control" name="description" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="submit" class="btn btn-primary">สร้างห้องเรียน</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal สำหรับนักเรียนเข้าร่วมห้องเรียน -->
+<div class="modal fade" id="joinClassModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('classroom.join') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">เข้าร่วมห้องเรียน</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Class Code</label>
+                        <input type="text" class="form-control form-control-lg text-center" name="class_code" required placeholder="กรอกรหัส 6 หลัก">
+                        <div class="form-text mt-2">สอบถาม Class Code ได้จากครูผู้สอนของคุณ</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="submit" class="btn btn-primary">เข้าร่วม</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
